@@ -1,9 +1,12 @@
 import random
 from datetime import datetime
-from nonebot import on_command, get_driver, get_plugin_config
+from nonebot import on_command, get_driver, get_plugin_config, require
 from nonebot.adapters.onebot.v11 import Bot, MessageEvent, GroupMessageEvent, PrivateMessageEvent, Message, MessageSegment
 from nonebot.params import CommandArg
 from nonebot.plugin import PluginMetadata
+
+require("nonebot_plugin_htmlrender")
+require("nonebot_plugin_localstore")
 
 from nonebot_plugin_htmlrender import html_to_pic
 from pathlib import Path
