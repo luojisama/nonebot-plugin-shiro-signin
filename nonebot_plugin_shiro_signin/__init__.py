@@ -11,7 +11,7 @@ require("nonebot_plugin_localstore")
 from pathlib import Path
 
 from .config import Config, get_level_name
-from .utils import get_user_data, update_user_data, get_hitokoto
+from .utils import load_user_data, save_user_data, get_hitokoto, check_and_update_streak, get_today_str
 
 # 设置数据路径
 try:
