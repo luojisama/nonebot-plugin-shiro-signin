@@ -15,9 +15,10 @@ from .utils import get_user_data, update_user_data, get_hitokoto
 
 # 设置数据路径
 try:
-    import nonebot_plugin_localstore as localstore
-    Config.model_fields["sign_in_data_path"].default = localstore.get_plugin_data_file("user_data.json")
-except Exception:
+    _localstore_plugin = require("nonebot_plugin_localstore")
+    _localstore = _localstore_plugin.module
+    Config.model_fields["sign_in_data_path"].default = _localstore.get_plugin_data_file("user_data.json")
+except (ImportError, RuntimeError, AttributeError):
     pass
 
 TEMPLATES_PATH = Path(__file__).parent / "templates"
