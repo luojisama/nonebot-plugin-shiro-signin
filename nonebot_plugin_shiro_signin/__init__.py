@@ -8,11 +8,17 @@ from nonebot.plugin import PluginMetadata
 require("nonebot_plugin_htmlrender")
 require("nonebot_plugin_localstore")
 
-from nonebot_plugin_htmlrender import html_to_pic
 from pathlib import Path
 
 from .config import Config, get_level_name
 from .utils import get_user_data, update_user_data, get_hitokoto
+
+# 设置数据路径
+try:
+    import nonebot_plugin_localstore as localstore
+    Config.model_fields["sign_in_data_path"].default = localstore.get_plugin_data_file("user_data.json")
+except Exception:
+    pass
 
 TEMPLATES_PATH = Path(__file__).parent / "templates"
 
@@ -118,6 +124,7 @@ async def render_sign_card(
     coins: int = 0
 ) -> bytes:
     """渲染签到/好感度卡片"""
+    from nonebot_plugin_htmlrender import html_to_pic
     level_name = get_level_name(favorability)
     hitokoto_text, hitokoto_from = await get_hitokoto()
     avatar_url = f"http://q.qlogo.cn/headimg_dl?dst_uin={user_id}&spec=640"
@@ -159,6 +166,7 @@ async def render_sign_card(
 
 async def render_shop_card(coins: int) -> bytes:
     """渲染商店卡片"""
+    from nonebot_plugin_htmlrender import html_to_pic
     template_path = TEMPLATES_PATH / "shop_card.html"
     with open(template_path, 'r', encoding='utf-8') as f:
         html_content = f.read()

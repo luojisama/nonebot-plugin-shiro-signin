@@ -1,12 +1,9 @@
-from nonebot import require
-require("nonebot_plugin_localstore")
-import nonebot_plugin_localstore as localstore
 from pathlib import Path
 from pydantic import BaseModel, Field
 
 class Config(BaseModel):
     sign_in_data_path: Path = Field(
-        default_factory=lambda: localstore.get_plugin_data_file("user_data.json")
+        default_factory=lambda: Path(".") / "data" / "user_data.json" # 默认值，实际加载时由 localstore 覆盖
     )
     hitokoto_api_url: str = "http://127.0.0.1:4399/v2/hitokoto"
     hitokoto_backup_api_url: str = "https://60s.viki.moe/v2/hitokoto"
