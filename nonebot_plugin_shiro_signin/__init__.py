@@ -18,7 +18,7 @@ __plugin_meta__ = PluginMetadata(
     description="支持签到、好感度查询及商店系统的签到插件",
     usage="签到: 每日签到增加好感度\n查询好感度: 查看当前好感度等级\n商店: 购买道具提升好感或行动值\n行动: 进行互动",
     type="library",
-    homepage="https://github.com/username/nonebot-plugin-shiro-signin",
+    homepage="https://github.com/luojisama/nonebot-plugin-shiro-signin",
     config=Config,
     supported_adapters={"nonebot.adapters.onebot.v11"},
 )

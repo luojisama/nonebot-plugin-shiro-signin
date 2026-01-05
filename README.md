@@ -3,8 +3,8 @@
 ✨ 基于 NoneBot2 的签到与好感度系统插件 ✨
 
 <p align="center">
-  <a href="https://raw.githubusercontent.com/username/nonebot-plugin-shiro-signin/master/LICENSE">
-    <img src="https://img.shields.io/github/license/username/nonebot-plugin-shiro-signin.svg" alt="license">
+  <a href="https://raw.githubusercontent.com/luojisama/nonebot-plugin-shiro-signin/master/LICENSE">
+    <img src="https://img.shields.io/github/license/luojisama/nonebot-plugin-shiro-signin.svg" alt="license">
   </a>
   <a href="https://pypi.python.org/pypi/nonebot-plugin-shiro-signin">
     <img src="https://img.shields.io/pypi/v/nonebot-plugin-shiro-signin.svg" alt="pypi">

@@ -3,7 +3,7 @@ name = "nonebot-plugin-shiro-signin"
 version = "0.1.0"
 description = "A NoneBot2 plugin for sign-in and favorability system themed with Shiro."
 authors = [
-    { name = "Author Name", email = "author@example.com" },
+    { name = "luojisama", email = "2534316454@qq.com" },
 ]
 dependencies = [
     "nonebot2>=2.2.0",
@@ -25,8 +25,8 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/username/nonebot-plugin-shiro-signin"
-Repository = "https://github.com/username/nonebot-plugin-shiro-signin"
+Homepage = "https://github.com/luojisama/nonebot-plugin-shiro-signin"
+Repository = "https://github.com/luojisama/nonebot-plugin-shiro-signin"
 
 [build-system]
 requires = ["hatchling"]
