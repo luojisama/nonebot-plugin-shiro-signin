@@ -1,0 +1,459 @@
+import random
+from datetime import datetime
+from nonebot import on_command, get_driver, get_plugin_config
+from nonebot.adapters.onebot.v11 import Bot, MessageEvent, GroupMessageEvent, PrivateMessageEvent, Message, MessageSegment
+from nonebot.params import CommandArg
+from nonebot.plugin import PluginMetadata
+
+from nonebot_plugin_htmlrender import html_to_pic
+from pathlib import Path
+
+from .config import Config, get_level_name
+from .utils import get_user_data, update_user_data, get_hitokoto
+
+TEMPLATES_PATH = Path(__file__).parent / "templates"
+
+__plugin_meta__ = PluginMetadata(
+    name="shiro签到",
+    description="支持签到、好感度查询及商店系统的签到插件",
+    usage="签到: 每日签到增加好感度\n查询好感度: 查看当前好感度等级\n商店: 购买道具提升好感或行动值\n行动: 进行互动",
+    type="library",
+    homepage="https://github.com/username/nonebot-plugin-shiro-signin",
+    config=Config,
+    supported_adapters={"nonebot.adapters.onebot.v11"},
+)
+
+config = get_plugin_config(Config)
+superusers = get_driver().config.superusers
+
+# 匹配器定义
+sign_in = on_command("签到", priority=5, block=True)
+query_favorability = on_command("查询好感度", aliases={"好感度", "我的好感度", "个人信息"}, priority=5, block=True)
+set_favorability = on_command("设置好感度", priority=5, block=True)
+set_coins = on_command("设置金币", priority=5, block=True)
+set_ap = on_command("设置行动值", priority=5, block=True)
+take_action = on_command("行动", aliases={"进行行动", "互动"}, priority=5, block=True)
+open_shop = on_command("商店", aliases={"绪山商店", "绪山百货"}, priority=5, block=True)
+buy_item = on_command("购买", priority=5, block=True)
+use_item = on_command("使用", aliases={"使用道具", "吃", "穿", "玩"}, priority=5, block=True)
+view_inventory = on_command("背包", aliases={"我的背包", "仓库"}, priority=5, block=True)
+
+# 《别当欧尼酱了》参考行动
+ONIMAI_ACTIONS = [
+    "和真寻一起玩游戏（真寻酱似乎有点不服输呢）",
+    "尝试美波里特制的“奇怪饮料”（感觉身体轻飘飘的...）",
+    "被美波里强行换上女装（真寻酱：为什么我也要穿啊！）",
+    "去商店街买可丽饼（真寻酱吃得满嘴都是奶油）",
+    "和真寻酱一起睡午觉（真寻酱的睡颜真可爱呢）",
+    "参加女子力提升大会（真寻酱：我已经是完美的女子高中生了！）",
+    "一起去洗澡（真寻酱：哇啊啊不要看过来！）",
+    "辅导真寻酱写作业（真寻酱在草稿纸上画小人）",
+    "和真寻酱一起买衣服（真寻酱在试衣间磨磨蹭蹭）",
+    "一起喝下午茶（真寻酱对草莓蛋糕完全没有抵抗力）"
+]
+
+# 商店物品定义
+STORE_ITEMS = {
+    "1": {
+        "name": "美波里的特制药水", 
+        "price": 50, 
+        "desc": "让真寻变身的神秘药水",
+        "effect_desc": "恢复 2-5 点行动值",
+        "type": "ap",
+        "value": (2, 5)
+    },
+    "2": {
+        "name": "真寻的小裙子", 
+        "price": 30, 
+        "desc": "真寻酱最喜欢的可爱裙子",
+        "effect_desc": "增加 5-10 点好感度",
+        "type": "fav",
+        "value": (5, 10)
+    },
+    "3": {
+        "name": "真寻酱的薯片", 
+        "price": 10, 
+        "desc": "打游戏时的最佳伴侣",
+        "effect_desc": "恢复 1 点行动值",
+        "type": "ap",
+        "value": (1, 1)
+    },
+    "4": {
+        "name": "美波里的游戏机", 
+        "price": 150, 
+        "desc": "性能强劲的高级游戏机",
+        "effect_desc": "增加 20-40 点好感度",
+        "type": "fav",
+        "value": (20, 40)
+    },
+    "5": {
+        "name": "《别当欧尼酱了》漫画", 
+        "price": 40, 
+        "desc": "补充女子力的原作能量",
+        "effect_desc": "恢复 3 点行动值",
+        "type": "ap",
+        "value": (3, 3)
+    },
+    "6": {
+        "name": "真寻的防晒霜", 
+        "price": 40, 
+        "desc": "出门散步的防晒必备品",
+        "effect_desc": "增加 5 点好感度",
+        "type": "fav",
+        "value": (5, 5)
+    }
+}
+
+async def render_sign_card(
+    user_id: str, 
+    user_name: str, 
+    favorability: float, 
+    inc: float = 0, 
+    is_query: bool = False,
+    title_override: str = None,
+    action_points: int = 0,
+    coins: int = 0
+) -> bytes:
+    """渲染签到/好感度卡片"""
+    level_name = get_level_name(favorability)
+    hitokoto_text, hitokoto_from = await get_hitokoto()
+    avatar_url = f"http://q.qlogo.cn/headimg_dl?dst_uin={user_id}&spec=640"
+    
+    # 渲染模板
+    template_path = TEMPLATES_PATH / "sign_card.html"
+    with open(template_path, 'r', encoding='utf-8') as f:
+        html_content = f.read()
+    
+    # 替换变量
+    title = title_override or ("好感度查询" if is_query else "今日签到")
+    inc_display = "none" if is_query else "block"
+    stat_width = "100%" if is_query else "auto"
+    time_label = "查询时间" if is_query else "签到时间"
+    
+    replacements = {
+        "{title}": title,
+        "{avatar_url}": avatar_url,
+        "{user_name}": user_name,
+        "{inc}": f"{inc:.2f}",
+        "{new_favorability}": f"{favorability:.2f}",
+        "{level_name}": level_name,
+        "{hitokoto_text}": hitokoto_text,
+        "{hitokoto_from}": hitokoto_from,
+        "{sign_time}": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        "{inc_display}": inc_display,
+        "{stat_width}": stat_width,
+        "{time_label}": time_label,
+        "{action_points}": str(action_points),
+        "{coins}": str(coins),
+        "{ap_status}": "可行动" if action_points > 0 else "休息中",
+        "{coin_status}": "可购买" if coins > 0 else "积累中"
+    }
+    
+    for k, v in replacements.items():
+        html_content = html_content.replace(k, v)
+        
+    return await html_to_pic(html_content, viewport={"width": 500, "height": 550})
+
+async def render_shop_card(coins: int) -> bytes:
+    """渲染商店卡片"""
+    template_path = TEMPLATES_PATH / "shop_card.html"
+    with open(template_path, 'r', encoding='utf-8') as f:
+        html_content = f.read()
+    
+    items_html = ""
+    for item_id, item in STORE_ITEMS.items():
+        items_html += f'''
+        <div class="item-card">
+            <div class="item-info">
+                <div class="item-header">
+                    <span class="item-id">{item_id}</span>
+                    <span class="item-name">{item["name"]}</span>
+                </div>
+                <div class="item-effect">✨ {item["effect_desc"]}</div>
+                <div class="item-desc">{item["desc"]}</div>
+            </div>
+            <div class="item-price">💰 {item["price"]}</div>
+        </div>
+        '''
+    
+    html_content = html_content.replace("{coins}", str(coins))
+    html_content = html_content.replace("{items_html}", items_html)
+    
+    return await html_to_pic(html_content, viewport={"width": 500, "height": 700})
+
+@sign_in.handle()
+async def handle_sign_in(bot: Bot, event: MessageEvent):
+    user_id = event.get_user_id()
+    user_name = event.sender.nickname or user_id
+    today = datetime.now().strftime("%Y-%m-%d")
+    
+    user_data = get_user_data(user_id)
+    
+    # 检查是否跨天，如果是新的一天则重置行动值
+    last_sign_in = user_data.get("last_sign_in", "")
+    current_ap = user_data.get("action_points", 0)
+    if last_sign_in != today:
+        current_ap = 0  # 每日清空行动值
+    
+    if last_sign_in == today:
+        # 重复签到，提示并发送图片
+        pic = await render_sign_card(
+            user_id, user_name, user_data["favorability"], 
+            is_query=True, title_override="今日已签到",
+            action_points=current_ap,
+            coins=user_data.get("coins", 0)
+        )
+        await sign_in.finish(MessageSegment.at(user_id) + f" 你今天已经签到过了哦！\n当前行动值: {current_ap}\n商店金币: {user_data.get('coins', 0)}\n发送“行动”或“商店”看看吧~" + MessageSegment.image(pic))
+    
+    # 随机增加 0-1 的好感度
+    inc = round(random.uniform(0, 1), 2)
+    new_favorability = round(user_data["favorability"] + inc, 2)
+    
+    # 奖励：行动值 +1（从0开始），金币 +0-5
+    new_ap = 1  # 签到获得今日的 1 点行动值
+    
+    current_coins = user_data.get("coins", 0)
+    coin_inc = random.randint(0, 5)
+    new_coins = current_coins + coin_inc
+    
+    # 更新数据
+    update_user_data(user_id, favorability=new_favorability, last_sign_in=today, action_points=new_ap, coins=new_coins)
+    
+    # 渲染图片
+    pic = await render_sign_card(user_id, user_name, new_favorability, inc=inc, action_points=new_ap, coins=new_coins)
+    
+    await sign_in.finish(
+        MessageSegment.at(user_id) + f" 签到成功！\n奖励：1点行动值 & {coin_inc}金币。\n当前金币: {new_coins}\n发送“商店”可以购买商品，“行动”可消耗行动值增加好感度~" + 
+        MessageSegment.image(pic)
+    )
+
+@query_favorability.handle()
+async def handle_query(bot: Bot, event: MessageEvent):
+    user_id = event.get_user_id()
+    user_name = event.sender.nickname or user_id
+    user_data = get_user_data(user_id)
+    
+    # 渲染图片
+    pic = await render_sign_card(
+        user_id, user_name, user_data["favorability"], 
+        is_query=True, action_points=user_data.get("action_points", 0),
+        coins=user_data.get("coins", 0)
+    )
+    
+    await query_favorability.finish(MessageSegment.image(pic))
+
+@take_action.handle()
+async def handle_action(bot: Bot, event: MessageEvent):
+    user_id = event.get_user_id()
+    user_name = event.sender.nickname or user_id
+    user_data = get_user_data(user_id)
+    
+    ap = user_data.get("action_points", 0)
+    if ap <= 0:
+        await take_action.finish(MessageSegment.at(user_id) + " 你的行动值不足哦，每日签到可以获得 1 点行动值！")
+    
+    # 随机行动描述
+    action_desc = random.choice(ONIMAI_ACTIONS)
+    # 随机增加 0-1 的好感度
+    inc = round(random.uniform(0, 1), 2)
+    new_favorability = round(user_data["favorability"] + inc, 2)
+    new_ap = ap - 1
+    
+    # 更新数据
+    update_user_data(user_id, favorability=new_favorability, action_points=new_ap)
+    
+    # 渲染卡片
+    pic = await render_sign_card(
+        user_id, user_name, new_favorability, 
+        inc=inc, title_override="进行行动",
+        action_points=new_ap,
+        coins=user_data.get("coins", 0)
+    )
+    
+    await take_action.finish(
+        MessageSegment.at(user_id) + f" 执行行动：{action_desc}\n好感度 +{inc}！\n剩余行动值: {new_ap}" + 
+        MessageSegment.image(pic)
+    )
+
+@open_shop.handle()
+async def handle_shop(bot: Bot, event: MessageEvent):
+    user_id = event.get_user_id()
+    user_data = get_user_data(user_id)
+    coins = user_data.get('coins', 0)
+    
+    # 渲染图片
+    pic = await render_shop_card(coins)
+    
+    await open_shop.finish(MessageSegment.image(pic))
+
+@buy_item.handle()
+async def handle_buy(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
+    user_id = event.get_user_id()
+    item_id = args.extract_plain_text().strip()
+    
+    if not item_id:
+        await buy_item.finish("请输入要购买的商品编号哦，例如：购买 1")
+    
+    if item_id not in STORE_ITEMS:
+        await buy_item.finish("这个商品编号好像不存在呢...")
+        
+    item = STORE_ITEMS[item_id]
+    user_data = get_user_data(user_id)
+    
+    if user_data.get("coins", 0) < item["price"]:
+        await buy_item.finish(f"金币不足哦！购买 {item['name']} 需要 {item['price']} 金币，你只有 {user_data.get('coins', 0)} 金币。")
+        
+    # 扣钱并添加进背包
+    new_coins = user_data["coins"] - item["price"]
+    inventory = user_data.get("inventory", [])
+    inventory.append(item["name"])
+    
+    update_user_data(user_id, coins=new_coins, inventory=inventory)
+    
+    await buy_item.finish(f"🛍️ 购买成功！你获得了【{item['name']}】。\n效果: {item['effect_desc']}\n发送“使用 {item['name']}”即可生效哦！")
+
+@use_item.handle()
+async def handle_use(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
+    user_id = event.get_user_id()
+    item_name = args.extract_plain_text().strip()
+    
+    if not item_name:
+        await use_item.finish("你想使用哪个道具呢？请在指令后面加上道具名称哦，例如：使用 真寻酱的薯片")
+        
+    user_data = get_user_data(user_id)
+    inventory = user_data.get("inventory", [])
+    
+    if item_name not in inventory:
+        await use_item.finish(f"你的背包里好像没有【{item_name}】呢...")
+        
+    # 查找道具配置
+    target_item = None
+    for item in STORE_ITEMS.values():
+        if item["name"] == item_name:
+            target_item = item
+            break
+            
+    if not target_item:
+        await use_item.finish("这个道具似乎无法被直接使用呢...")
+        
+    # 消耗道具
+    inventory.remove(item_name)
+    
+    # 执行效果
+    msg = f"✨ 使用了【{item_name}】！\n"
+    
+    new_fav = user_data.get("favorability", 0.0)
+    new_ap = user_data.get("action_points", 0)
+    
+    if target_item["type"] == "fav":
+        inc = round(random.uniform(target_item["value"][0], target_item["value"][1]), 2)
+        new_fav = round(new_fav + inc, 2)
+        msg += f"好感度增加了 {inc} 点！当前好感度: {new_fav}"
+    elif target_item["type"] == "ap":
+        inc = random.randint(target_item["value"][0], target_item["value"][1])
+        new_ap += inc
+        msg += f"行动值恢复了 {inc} 点！当前行动值: {new_ap}"
+        
+    # 更新数据
+    update_user_data(user_id, favorability=new_fav, action_points=new_ap, inventory=inventory)
+    
+    # 渲染新的卡片
+    pic = await render_sign_card(
+        user_id, event.sender.nickname or user_id, new_fav, 
+        title_override="使用道具", 
+        action_points=new_ap, 
+        coins=user_data.get("coins", 0)
+    )
+    
+    await use_item.finish(MessageSegment.at(user_id) + msg + MessageSegment.image(pic))
+
+@view_inventory.handle()
+async def handle_inventory(bot: Bot, event: MessageEvent):
+    user_id = event.get_user_id()
+    user_data = get_user_data(user_id)
+    inventory = user_data.get("inventory", [])
+    
+    if not inventory:
+        await view_inventory.finish("你的背包里空空如也呢，快去签到领金币买点东西吧！")
+        
+    # 统计数量
+    item_counts = {}
+    for item in inventory:
+        item_counts[item] = item_counts.get(item, 0) + 1
+        
+    msg = f"🎒 {event.sender.nickname or user_id} 的背包\n"
+    msg += "--------------------------\n"
+    for item, count in item_counts.items():
+        # 查找效果描述
+        eff = "未知效果"
+        for si in STORE_ITEMS.values():
+            if si["name"] == item:
+                eff = si["effect_desc"]
+                break
+        msg += f"• {item} x{count}\n"
+        msg += f"  └ 效果: {eff}\n"
+    msg += "--------------------------\n"
+    msg += f"当前金币: {user_data.get('coins', 0)}\n"
+    msg += "发送“使用 [道具名称]”即可使用道具哦~"
+    
+    await view_inventory.finish(msg)
+
+@set_favorability.handle()
+async def handle_set(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
+    if event.get_user_id() not in superusers:
+        await set_favorability.finish("权限不足，仅限超级用户使用。")
+    
+    arg_list = args.extract_plain_text().split()
+    if len(arg_list) < 2:
+        await set_favorability.finish("参数错误。用法: 设置好感度 [用户QQ] [数值]")
+        return
+    
+    target_user_id = arg_list[0]
+    try:
+        new_val = float(arg_list[1])
+    except ValueError:
+        await set_favorability.finish("数值格式不正确。")
+        return
+    
+    update_user_data(target_user_id, favorability=new_val)
+    await set_favorability.finish(f"已成功将用户 {target_user_id} 的好感度设置为 {new_val}")
+
+@set_coins.handle()
+async def handle_set_coins(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
+    if event.get_user_id() not in superusers:
+        await set_coins.finish("权限不足，仅限超级用户使用。")
+    
+    arg_list = args.extract_plain_text().split()
+    if len(arg_list) < 2:
+        await set_coins.finish("参数错误。用法: 设置金币 [用户QQ] [数值]")
+        return
+    
+    target_user_id = arg_list[0]
+    try:
+        new_val = int(arg_list[1])
+    except ValueError:
+        await set_coins.finish("金币数值必须是整数哦。")
+        return
+    
+    update_user_data(target_user_id, coins=new_val)
+    await set_coins.finish(f"已成功将用户 {target_user_id} 的金币设置为 {new_val}")
+
+@set_ap.handle()
+async def handle_set_ap(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
+    if event.get_user_id() not in superusers:
+        await set_ap.finish("权限不足，仅限超级用户使用。")
+    
+    arg_list = args.extract_plain_text().split()
+    if len(arg_list) < 2:
+        await set_ap.finish("参数错误。用法: 设置行动值 [用户QQ] [数值]")
+        return
+    
+    target_user_id = arg_list[0]
+    try:
+        new_val = int(arg_list[1])
+    except ValueError:
+        await set_ap.finish("行动值必须是整数哦。")
+        return
+    
+    update_user_data(target_user_id, action_points=new_val)
+    await set_ap.finish(f"已成功将用户 {target_user_id} 的行动值设置为 {new_val}")
