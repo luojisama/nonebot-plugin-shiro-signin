@@ -125,12 +125,14 @@ async def render_sign_card(
     coins: int = 0
 ) -> bytes:
     """渲染签到/好感度卡片"""
-    from nonebot_plugin_htmlrender import html_to_pic
+    # 渲染模板
+    _htmlrender = require("nonebot_plugin_htmlrender")
+    html_to_pic = _htmlrender.module.html_to_pic
+    
     level_name = get_level_name(favorability)
     hitokoto_text, hitokoto_from = await get_hitokoto()
     avatar_url = f"http://q.qlogo.cn/headimg_dl?dst_uin={user_id}&spec=640"
     
-    # 渲染模板
     template_path = TEMPLATES_PATH / "sign_card.html"
     with open(template_path, 'r', encoding='utf-8') as f:
         html_content = f.read()
@@ -167,7 +169,8 @@ async def render_sign_card(
 
 async def render_shop_card(coins: int) -> bytes:
     """渲染商店卡片"""
-    from nonebot_plugin_htmlrender import html_to_pic
+    _htmlrender = require("nonebot_plugin_htmlrender")
+    html_to_pic = _htmlrender.module.html_to_pic
     template_path = TEMPLATES_PATH / "shop_card.html"
     with open(template_path, 'r', encoding='utf-8') as f:
         html_content = f.read()
