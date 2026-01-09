@@ -14,7 +14,7 @@
             display: flex;
             justify-content: center;
             align-items: flex-start;
-            min-height: 550px;
+            min-height: 650px;
             width: 500px;
         }
 
@@ -184,7 +184,12 @@
             <div class="stat-item">
                 <div class="stat-label">商店金币</div>
                 <div class="stat-value">{coins}</div>
-                <div class="level-badge">{coin_status}</div>
+                <div class="level-badge">{coin_level_name}</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">累计签到</div>
+                <div class="stat-value">{total_sign_ins} 天</div>
+                <div class="level-badge">坚持不懈</div>
             </div>
         </div>
 
@@ -194,7 +199,7 @@
         </div>
 
         <div class="footer-time">
-            {time_label}: {sign_time}
+            首次签到: {first_sign_in} | {time_label}: {sign_time}
         </div>
     </div>
 </body>

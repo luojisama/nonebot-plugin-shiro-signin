@@ -2,10 +2,9 @@ import json
 import os
 import httpx
 from pathlib import Path
-from nonebot import get_plugin_config
 from .config import Config
 
-config = get_plugin_config(Config)
+config = Config()
 
 async def get_hitokoto() -> tuple[str, str]:
     """获取一言 (尝试主 API 和备用 API)"""
@@ -55,9 +54,12 @@ def get_user_data(user_id: str) -> dict:
     default = {
         "favorability": 0.0, 
         "last_sign_in": "", 
+        "first_sign_in": "",
         "action_points": 0, 
         "coins": 0, 
         "inventory": [],
+        "total_sign_ins": 0,
+        "achievements": [],
         "blacklist_count": 0,
         "is_perm_blacklisted": False
     }
@@ -73,6 +75,15 @@ def get_user_data(user_id: str) -> dict:
         if "inventory" not in data[user_id]:
             data[user_id]["inventory"] = []
             changed = True
+        if "total_sign_ins" not in data[user_id]:
+            data[user_id]["total_sign_ins"] = 0
+            changed = True
+        if "first_sign_in" not in data[user_id]:
+            data[user_id]["first_sign_in"] = ""
+            changed = True
+        if "achievements" not in data[user_id]:
+            data[user_id]["achievements"] = []
+            changed = True
         if "blacklist_count" not in data[user_id]:
             data[user_id]["blacklist_count"] = 0
             changed = True
@@ -84,16 +95,19 @@ def get_user_data(user_id: str) -> dict:
             
     return data.get(user_id, default)
 
-def update_user_data(user_id: str, favorability: float = None, last_sign_in: str = None, daily_fav_count: float = None, last_update: str = None, action_points: int = None, coins: int = None, inventory: list = None, blacklist_count: int = None, is_perm_blacklisted: bool = None):
+def update_user_data(user_id: str, favorability: float = None, last_sign_in: str = None, first_sign_in: str = None, daily_fav_count: float = None, last_update: str = None, action_points: int = None, coins: int = None, inventory: list = None, total_sign_ins: int = None, achievements: list = None, blacklist_count: int = None, is_perm_blacklisted: bool = None):
     """更新单个用户或群聊的数据"""
     data = load_data()
     if user_id not in data:
         default = {
             "favorability": 0.0, 
             "last_sign_in": "", 
+            "first_sign_in": "",
             "action_points": 0, 
             "coins": 0, 
             "inventory": [],
+            "total_sign_ins": 0,
+            "achievements": [],
             "blacklist_count": 0,
             "is_perm_blacklisted": False
         }
@@ -105,6 +119,8 @@ def update_user_data(user_id: str, favorability: float = None, last_sign_in: str
         data[user_id]["favorability"] = favorability
     if last_sign_in is not None:
         data[user_id]["last_sign_in"] = last_sign_in
+    if first_sign_in is not None:
+        data[user_id]["first_sign_in"] = first_sign_in
     if daily_fav_count is not None:
         data[user_id]["daily_fav_count"] = daily_fav_count
     if last_update is not None:
@@ -115,6 +131,10 @@ def update_user_data(user_id: str, favorability: float = None, last_sign_in: str
         data[user_id]["coins"] = coins
     if inventory is not None:
         data[user_id]["inventory"] = inventory
+    if total_sign_ins is not None:
+        data[user_id]["total_sign_ins"] = total_sign_ins
+    if achievements is not None:
+        data[user_id]["achievements"] = achievements
     if blacklist_count is not None:
         data[user_id]["blacklist_count"] = blacklist_count
     if is_perm_blacklisted is not None:
