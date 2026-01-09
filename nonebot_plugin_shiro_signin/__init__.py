@@ -1,23 +1,35 @@
 import random
 from datetime import datetime
-from nonebot import on_command, get_driver, get_plugin_config
+from nonebot import on_command, get_driver, get_plugin_config, require
 from nonebot.adapters.onebot.v11 import Bot, MessageEvent, GroupMessageEvent, PrivateMessageEvent, Message, MessageSegment
 from nonebot.params import CommandArg
 from nonebot.plugin import PluginMetadata
 
-from nonebot_plugin_htmlrender import html_to_pic
+require("nonebot_plugin_htmlrender")
+require("nonebot_plugin_localstore")
+
 from pathlib import Path
 
 from .config import Config, get_level_name, get_coin_level_name
 from .utils import get_user_data, update_user_data, get_hitokoto
 
+# 设置数据路径
+try:
+    _localstore = require("nonebot_plugin_localstore")
+    Config.model_fields["sign_in_data_path"].default = _localstore.get_plugin_data_file("user_data.json")
+except Exception:
+    pass
+
 TEMPLATES_PATH = Path(__file__).parent / "templates"
 
 __plugin_meta__ = PluginMetadata(
-    name="签到系统",
-    description="支持签到、好感度查询及设置的插件",
-    usage="签到: 每日签到增加好感度\n查询好感度: 查看当前好感度等级\n设置好感度: 超级用户设置指定用户好感度",
+    name="shiro签到",
+    description="支持签到、好感度查询及商店系统的签到插件",
+    usage="签到: 每日签到增加好感度\n查询好感度: 查看当前好感度等级\n商店: 购买道具提升好感或行动值\n行动: 进行互动",
+    type="library",
+    homepage="https://github.com/luojisama/nonebot-plugin-shiro-signin",
     config=Config,
+    supported_adapters={"nonebot.adapters.onebot.v11"},
 )
 
 config = get_plugin_config(Config)
@@ -241,7 +253,8 @@ async def render_sign_card(
     for k, v in replacements.items():
         html_content = html_content.replace(k, v)
         
-    return await html_to_pic(html_content, viewport={"width": 500, "height": 650})
+    _htmlrender = require("nonebot_plugin_htmlrender")
+    return await _htmlrender.html_to_pic(html_content, viewport={"width": 500, "height": 650})
 
 async def render_shop_card(coins: int) -> bytes:
     """渲染商店卡片"""
@@ -268,7 +281,8 @@ async def render_shop_card(coins: int) -> bytes:
     html_content = html_content.replace("{coins}", str(coins))
     html_content = html_content.replace("{items_html}", items_html)
     
-    return await html_to_pic(html_content, viewport={"width": 500, "height": 1200})
+    _htmlrender = require("nonebot_plugin_htmlrender")
+    return await _htmlrender.html_to_pic(html_content, viewport={"width": 500, "height": 1200})
 
 @sign_in.handle()
 async def handle_sign_in(bot: Bot, event: MessageEvent):

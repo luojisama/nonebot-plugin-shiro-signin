@@ -1,6 +1,6 @@
 [project]
 name = "nonebot-plugin-shiro-signin"
-version = "0.1.8"
+version = "0.1.9"
 description = "A NoneBot2 plugin for sign-in and favorability system themed with Shiro."
 authors = [
     { name = "luojisama", email = "2534316454@qq.com" },

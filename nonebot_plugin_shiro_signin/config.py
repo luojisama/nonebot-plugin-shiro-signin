@@ -2,9 +2,9 @@ from pathlib import Path
 from pydantic import BaseModel
 
 class Config(BaseModel):
-    sign_in_data_path: Path = Path(__file__).parent / "data" / "user_data.json"
-    hitokoto_api_url: str = "http://127.0.0.1:4399/v2/hitokoto"
-    hitokoto_backup_api_url: str = "https://60s.viki.moe/v2/hitokoto"
+    sign_in_data_path: Path = Path("data/user_data.json")
+    hitokoto_api_url: str = "https://v1.hitokoto.cn"
+    hitokoto_backup_api_url: str = "https://international.v1.hitokoto.cn"
     
     # 好感度等级定义
     # (阈值, 等级名称)
