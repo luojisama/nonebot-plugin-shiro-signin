@@ -1,8 +1,7 @@
-from pathlib import Path
+from nonebot import get_plugin_config
 from pydantic import BaseModel
 
 class Config(BaseModel):
-    sign_in_data_path: Path = Path("data/user_data.json")
     hitokoto_api_url: str = "https://v1.hitokoto.cn"
     hitokoto_backup_api_url: str = "https://international.v1.hitokoto.cn"
     
@@ -35,10 +34,12 @@ class Config(BaseModel):
         (50000, "富可敌国"),
     ]
 
+config = get_plugin_config(Config)
+
 def get_level_name(favorability: float) -> str:
     """根据好感度获取等级名称"""
     level_name = "陌生"
-    for threshold, name in Config().favorability_levels:
+    for threshold, name in config.favorability_levels:
         if favorability >= threshold:
             level_name = name
         else:
@@ -48,7 +49,7 @@ def get_level_name(favorability: float) -> str:
 def get_coin_level_name(coins: int) -> str:
     """根据金币数量获取等级名称"""
     level_name = "一贫如洗"
-    for threshold, name in Config().coin_levels:
+    for threshold, name in config.coin_levels:
         if coins >= threshold:
             level_name = name
         else:

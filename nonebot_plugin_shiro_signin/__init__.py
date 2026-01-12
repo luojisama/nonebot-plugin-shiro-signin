@@ -1,6 +1,6 @@
 import random
 from datetime import datetime
-from nonebot import on_command, get_driver, get_plugin_config, require
+from nonebot import on_command, get_driver, require
 from nonebot.adapters.onebot.v11 import Bot, MessageEvent, GroupMessageEvent, PrivateMessageEvent, Message, MessageSegment
 from nonebot.params import CommandArg
 from nonebot.plugin import PluginMetadata
@@ -8,17 +8,13 @@ from nonebot.plugin import PluginMetadata
 require("nonebot_plugin_htmlrender")
 require("nonebot_plugin_localstore")
 
+import nonebot_plugin_htmlrender
+import nonebot_plugin_localstore
+
 from pathlib import Path
 
-from .config import Config, get_level_name, get_coin_level_name
+from .config import Config, config, get_level_name, get_coin_level_name
 from .utils import get_user_data, update_user_data, get_hitokoto
-
-# 设置数据路径
-try:
-    _localstore = require("nonebot_plugin_localstore")
-    Config.model_fields["sign_in_data_path"].default = _localstore.get_plugin_data_file("user_data.json")
-except Exception:
-    pass
 
 TEMPLATES_PATH = Path(__file__).parent / "templates"
 
@@ -26,13 +22,12 @@ __plugin_meta__ = PluginMetadata(
     name="shiro签到",
     description="支持签到、好感度查询及商店系统的签到插件",
     usage="签到: 每日签到增加好感度\n查询好感度: 查看当前好感度等级\n商店: 购买道具提升好感或行动值\n行动: 进行互动",
-    type="library",
+    type="application",
     homepage="https://github.com/luojisama/nonebot-plugin-shiro-signin",
     config=Config,
     supported_adapters={"nonebot.adapters.onebot.v11"},
 )
 
-config = get_plugin_config(Config)
 superusers = get_driver().config.superusers
 
 # 匹配器定义
@@ -281,8 +276,7 @@ async def render_shop_card(coins: int) -> bytes:
     html_content = html_content.replace("{coins}", str(coins))
     html_content = html_content.replace("{items_html}", items_html)
     
-    _htmlrender = require("nonebot_plugin_htmlrender")
-    return await _htmlrender.html_to_pic(html_content, viewport={"width": 500, "height": 1200})
+    return await nonebot_plugin_htmlrender.html_to_pic(html_content, viewport={"width": 500, "height": 1200})
 
 @sign_in.handle()
 async def handle_sign_in(bot: Bot, event: MessageEvent):

@@ -2,9 +2,10 @@ import json
 import os
 import httpx
 from pathlib import Path
-from .config import Config
+import nonebot_plugin_localstore as localstore
+from .config import config
 
-config = Config()
+DATA_PATH = localstore.get_plugin_data_file("user_data.json")
 
 async def get_hitokoto() -> tuple[str, str]:
     """获取一言 (尝试主 API 和备用 API)"""
@@ -33,18 +34,18 @@ async def get_hitokoto() -> tuple[str, str]:
 
 def load_data() -> dict:
     """加载用户数据"""
-    if not config.sign_in_data_path.exists():
+    if not DATA_PATH.exists():
         return {}
     try:
-        with open(config.sign_in_data_path, 'r', encoding='utf-8') as f:
+        with open(DATA_PATH, 'r', encoding='utf-8') as f:
             return json.load(f)
     except Exception:
         return {}
 
 def save_data(data: dict):
     """保存用户数据"""
-    config.sign_in_data_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(config.sign_in_data_path, 'w', encoding='utf-8') as f:
+    DATA_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(DATA_PATH, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
 def get_user_data(user_id: str) -> dict:
