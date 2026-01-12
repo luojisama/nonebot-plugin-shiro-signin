@@ -248,8 +248,7 @@ async def render_sign_card(
     for k, v in replacements.items():
         html_content = html_content.replace(k, v)
         
-    _htmlrender = require("nonebot_plugin_htmlrender")
-    return await _htmlrender.html_to_pic(html_content, viewport={"width": 500, "height": 650})
+    return await nonebot_plugin_htmlrender.html_to_pic(html_content, viewport={"width": 500, "height": 650})
 
 async def render_shop_card(coins: int) -> bytes:
     """渲染商店卡片"""
