@@ -62,7 +62,14 @@ def get_user_data(user_id: str) -> dict:
         "total_sign_ins": 0,
         "achievements": [],
         "blacklist_count": 0,
-        "is_perm_blacklisted": False
+        "is_perm_blacklisted": False,
+        "nickname": "",
+        "last_work_time": "",
+        "remaining_works": 1,
+        "custom_title": "",     # 自定义头衔
+        "bank_coins": 0,        # 银行存款
+        "last_rob_time": 0,      # 上次抢劫时间 (timestamp)
+        "achievement_progress": {"red_packet_total": 0, "steal_success": 0, "consecutive_fails": 0}
     }
     if user_id.startswith("group_"):
         default = {"favorability": 100.0, "daily_fav_count": 0.0, "last_update": ""}
@@ -70,75 +77,27 @@ def get_user_data(user_id: str) -> dict:
     # 兼容旧数据，补齐缺失字段
     if user_id in data and not user_id.startswith("group_"):
         changed = False
-        if "coins" not in data[user_id]:
-            data[user_id]["coins"] = 0
-            changed = True
-        if "inventory" not in data[user_id]:
-            data[user_id]["inventory"] = []
-            changed = True
-        if "total_sign_ins" not in data[user_id]:
-            data[user_id]["total_sign_ins"] = 0
-            changed = True
-        if "first_sign_in" not in data[user_id]:
-            data[user_id]["first_sign_in"] = ""
-            changed = True
-        if "achievements" not in data[user_id]:
-            data[user_id]["achievements"] = []
-            changed = True
-        if "blacklist_count" not in data[user_id]:
-            data[user_id]["blacklist_count"] = 0
-            changed = True
-        if "is_perm_blacklisted" not in data[user_id]:
-            data[user_id]["is_perm_blacklisted"] = False
-            changed = True
+        # 批量检查并设置默认值
+        for key, value in default.items():
+            if key not in data[user_id]:
+                data[user_id][key] = value
+                changed = True
+        
         if changed:
             save_data(data)
             
     return data.get(user_id, default)
 
-def update_user_data(user_id: str, favorability: float = None, last_sign_in: str = None, first_sign_in: str = None, daily_fav_count: float = None, last_update: str = None, action_points: int = None, coins: int = None, inventory: list = None, total_sign_ins: int = None, achievements: list = None, blacklist_count: int = None, is_perm_blacklisted: bool = None):
+def update_user_data(user_id: str, **kwargs):
     """更新单个用户或群聊的数据"""
     data = load_data()
     if user_id not in data:
-        default = {
-            "favorability": 0.0, 
-            "last_sign_in": "", 
-            "first_sign_in": "",
-            "action_points": 0, 
-            "coins": 0, 
-            "inventory": [],
-            "total_sign_ins": 0,
-            "achievements": [],
-            "blacklist_count": 0,
-            "is_perm_blacklisted": False
-        }
-        if user_id.startswith("group_"):
-            default = {"favorability": 100.0, "daily_fav_count": 0.0, "last_update": ""}
-        data[user_id] = default
+        # 获取默认值并根据 kwargs 更新
+        user_data = get_user_data(user_id)
+        data[user_id] = user_data
     
-    if favorability is not None:
-        data[user_id]["favorability"] = favorability
-    if last_sign_in is not None:
-        data[user_id]["last_sign_in"] = last_sign_in
-    if first_sign_in is not None:
-        data[user_id]["first_sign_in"] = first_sign_in
-    if daily_fav_count is not None:
-        data[user_id]["daily_fav_count"] = daily_fav_count
-    if last_update is not None:
-        data[user_id]["last_update"] = last_update
-    if action_points is not None:
-        data[user_id]["action_points"] = action_points
-    if coins is not None:
-        data[user_id]["coins"] = coins
-    if inventory is not None:
-        data[user_id]["inventory"] = inventory
-    if total_sign_ins is not None:
-        data[user_id]["total_sign_ins"] = total_sign_ins
-    if achievements is not None:
-        data[user_id]["achievements"] = achievements
-    if blacklist_count is not None:
-        data[user_id]["blacklist_count"] = blacklist_count
-    if is_perm_blacklisted is not None:
-        data[user_id]["is_perm_blacklisted"] = is_perm_blacklisted
-        
+    for key, value in kwargs.items():
+        if value is not None:
+            data[user_id][key] = value
+            
     save_data(data)
